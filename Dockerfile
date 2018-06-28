@@ -9,6 +9,7 @@ ADD repositories /etc/apk/repositories
     # See https://github.com/npm/npm/issues/17781
 RUN buildDeps='libtool gcc g++ python make coreutils curl' \
     && apk --update upgrade && apk add $buildDeps \
+    && npm config set registry https://registry.npm.taobao.org \
     && npm install \
     && npm run build \
     && rm -rf node_modules/ \
