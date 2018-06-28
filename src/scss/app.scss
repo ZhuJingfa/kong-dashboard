@@ -23,10 +23,12 @@ section.content {
     }
 
     footer {
-        background-color: $primary-color;
+        background-color: #26a69a;
         p {
             padding-right: 15px;
             text-align: right;
+            padding: 8px 15px 8px 0;
+            margin: 0;
         }
     }
 }
