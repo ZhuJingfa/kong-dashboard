@@ -1,6 +1,7 @@
 var HomePage = require('../util/HomePage');
 var Sidebar = require('../util/Sidebar');
 var KongDashboard = require('../util/KongDashboard');
+var semver = require('semver');
 
 var kd = new KongDashboard();
 
@@ -14,14 +15,12 @@ describe('Sidebar testing', () => {
     kd.stop(done);
   });
 
-  it('should display SNIs and Certificates links depending on Kong version', () => {
+  it('should display Certificates links depending on Kong version', () => {
     HomePage.visit();
-    if (process.env.KONG_VERSION === '0.9') {
-      expect(Sidebar.getLinkElement('SNIs').isPresent()).toBeFalsy();
+    if (semver.satisfies(process.env.KONG_VERSION, '0.9.x')) {
       expect(Sidebar.getLinkElement('Certificates').isPresent()).toBeFalsy();
     }
-    else if (['0.10', '0.11', '0.12','0.13'].includes(process.env.KONG_VERSION)) {
-      expect(Sidebar.getLinkElement('SNIs').isPresent()).toBeTruthy();
+    else if (semver.satisfies(process.env.KONG_VERSION, '>=0.10.0 < 2.0.0')) {
       expect(Sidebar.getLinkElement('Certificates').isPresent()).toBeTruthy();
     }
     else {

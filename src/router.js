@@ -2,62 +2,119 @@
   angular.module('app').config(['$routeProvider', router]);
 
   function router($routeProvider) {
+
+    var indexRoutes = [
+      { path: '/apis', resourceType: 'API' },
+      { path: '/apis/:id/plugins', resourceType: 'plugin', parentType: 'API' },
+      { path: '/certificates', resourceType: 'certificate' },
+      { path: '/consumers', resourceType: 'consumer' },
+      { path: '/consumers/:id/groups', resourceType: 'acl', parentType: 'consumer' },
+      { path: '/consumers/:id/plugins', resourceType: 'plugin', parentType: 'consumer' },
+      { path: '/consumers/:id/basic-auth-credentials', resourceType: 'basic-auth-credential', resourceName: 'basic auth credential', parentType: 'consumer' },
+      { path: '/consumers/:id/hmac-credentials', resourceType: 'hmac-credential', resourceName: 'hmac credential', parentType: 'consumer' },
+      { path: '/consumers/:id/jwt-credentials', resourceType: 'jwt-credential', resourceName: 'jwt credential', parentType: 'consumer' },
+      { path: '/consumers/:id/auth-keys', resourceType: 'auth-key', parentType: 'consumer' },
+      { path: '/consumers/:id/oauth2-credentials', resourceType: 'oauth2-credential', resourceName: 'oauth2 credential', parentType: 'consumer' },
+      { path: '/plugins',  resourceType: 'plugin' },
+      { path: '/routes', resourceType: 'route' },
+      { path: '/services', resourceType: 'service' },
+      { path: '/services/:id/routes', resourceType: 'route', parentType: 'service' },
+      { path: '/upstreams', resourceType: 'upstream' },
+      { path: '/upstreams/:id/targets', resourceType: 'target', parentType: 'upstream' },
+    ];
+
+    var createUpdateRoutes = [
+      { path: '/apis/add', resourceType: 'API'},
+      { path: '/apis/:id', resourceType: 'API'},
+      { path: '/certificates/add', resourceType: 'certificate'},
+      { path: '/certificates/:id', resourceType: 'certificate'},
+      { path: '/consumers/add', resourceType: 'consumer'},
+      { path: '/consumers/:id', resourceType: 'consumer'},
+      { path: '/consumers/:parent_id/auth-keys/add', resourceType: 'auth-key', parentType: 'consumer'},
+      { path: '/consumers/:parent_id/basic-auth-credential/add', resourceType: 'basic-auth-credential', resourceName: 'basic auth credential', parentType: 'consumer'},
+      { path: '/consumers/:parent_id/groups/add', resourceType: 'acl', parentType: 'consumer'},
+      { path: '/consumers/:parent_id/jwt-credentials/add', resourceType: 'jwt-credential', resourceName: 'jwt credential', parentType: 'consumer' },
+      { path: '/consumers/:parent_id/hmac-credentials/add', resourceType: 'hmac-credential', resourceName: 'hmac credential', parentType: 'consumer'},
+      { path: '/consumers/:parent_id/oauth2-credentials/add', resourceType: 'oauth2-credential', resourceName: 'oauth2 credential', parentType: 'consumer' },
+      { path: '/routes/:id', resourceType: 'route'},
+      { path: '/services/add', resourceType: 'service'},
+      { path: '/services/:id', resourceType: 'service'},
+      { path: '/services/:parent_id/routes/add', resourceType: 'route', parentType: 'service'},
+      { path: '/upstreams/add', resourceType: 'upstream'},
+      { path: '/upstreams/:id', resourceType: 'upstream'},
+      { path: '/upstreams/:parent_id/targets/add', resourceType: 'target', parentType: 'upstream'},
+    ];
+
+    indexRoutes.forEach(function (route) {
+      $routeProvider.when(route.path, {
+        templateUrl: 'pages/index_resources/base.view.html',
+        controller: 'IndexResources',
+        controllerAs: 'vm',
+        resolve: {
+          resourceType: function () {
+            return route.resourceType
+          },
+          resourceName: function () {
+            var name = route.resourceName || route.resourceType;
+            return name.charAt(0).toUpperCase() + name.slice(1);
+          },
+          parentType: function () {
+            return route.parentType || null;
+          },
+          parent: ['Kong', '$route', function (Kong, $route) {
+            if (!route.parentType) {
+              return null;
+            }
+            var parentId = $route.current.params.id;
+            return Kong.get('/' + route.parentType.toLowerCase() + 's/' + parentId);
+          }]
+        }
+      });
+    });
+
+    createUpdateRoutes.forEach(function (route) {
+      $routeProvider.when(route.path, {
+        templateUrl: 'pages/create_or_update_resource/show_resource.view.html',
+        controller: 'CreateOrUpdateResource',
+        controllerAs: 'vm',
+        resolve: {
+          resourceType: function () {
+            return route.resourceType
+          },
+          resourceName: function () {
+            var name = route.resourceName || route.resourceType;
+            return name.charAt(0).toUpperCase() + name.slice(1);
+          },
+          resource: ['Kong', '$route', function (Kong, $route) {
+            if (!$route.current.params.id) {
+              return null;
+            } else {
+              return Kong.get('/' + route.resourceType.toLowerCase() + 's/' + $route.current.params.id);
+            }
+          }],
+          parentType: function () {
+            return route.parentType || null;
+          },
+          parent: ['Kong', '$route', function (Kong, $route) {
+            if (!route.parentType) {
+              return null;
+            }
+            var parentId = $route.current.params.parent_id;
+            return Kong.get('/' + route.parentType.toLowerCase() + 's/' + parentId);
+          }]
+        }
+      });
+    });
+
     $routeProvider
       .when('/', {
-        templateUrl: 'html/home.html',
+        templateUrl: 'pages/home/home.html',
         controller: 'HomeController'
       })
-      .when('/apis', {
-        templateUrl: 'html/apis/index.html',
-        controller: 'ApisController'
-      })
-      .when('/apis/add', {
-        templateUrl: 'html/apis/form.html',
-        controller: 'ApiController',
-        resolve: {
-          api: function() {return {}}
-        }
-      })
-      .when('/apis/:id', {
-        templateUrl: 'html/apis/form.html',
-        controller: 'ApiController',
-        resolve: {
-          api: ['Kong', '$route', function (Kong, $route) {
-            var id = $route.current.params.id;
-            return Kong.get('/apis/' + id)
-          }]
-        }
-      })
-      .when('/apis/:api_id/plugins', {
-        templateUrl: 'html/plugins/index.html',
-        controller: 'PluginsController',
-        resolve: {
-          owner: ['Kong', '$route', function(Kong, $route) {
-            var api_id = $route.current.params.api_id;
-            return Kong.get('/apis/' + api_id);
-          }]
-        }
-      })
-      .when('/consumers/:consumer_id/plugins', {
-        templateUrl: 'html/plugins/index.html',
-        controller: 'PluginsController',
-        resolve: {
-          owner: ['Kong', '$route', function(Kong, $route) {
-            var consumer_id = $route.current.params.consumer_id;
-            return Kong.get('/consumers/' + consumer_id);
-          }]
-        }
-      })
-      .when('/plugins', {
-        templateUrl: 'html/plugins/index.html',
-        controller: 'PluginsController',
-        resolve: {
-          owner: function() { return {};}
-        }
-      })
       .when('/plugins/add', {
-        templateUrl: 'html/plugins/form.html',
+        templateUrl: 'pages/create_or_update_plugin/plugin.view.html',
         controller: 'PluginController',
+        controllerAs: 'vm',
         resolve: {
           plugin: function() {
             return null;
@@ -65,17 +122,36 @@
           plugins: ['Kong', function (Kong) {
             return Kong.get('/plugins/enabled');
           }],
-          apis: ['Kong', '$location', function(Kong) {
-            return Kong.get('/apis');
+          apis: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.api) {
+              return Kong.get('/apis?size=1000');
+            } else {
+              return null;
+            }
           }],
-          consumers: ['Kong', '$location', function(Kong) {
+          consumers: ['Kong', function(Kong) {
             return Kong.get('/consumers?size=1000');
+          }],
+          services: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.service) {
+              return Kong.get('/services?size=1000');
+            } else {
+              return null;
+            }
+          }],
+          routes: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.route) {
+              return Kong.get('/routes?size=1000');
+            } else {
+              return null;
+            }
           }]
         }
       })
       .when('/plugins/:id', {
-        templateUrl: 'html/plugins/form.html',
+        templateUrl: 'pages/create_or_update_plugin/plugin.view.html',
         controller: 'PluginController',
+        controllerAs: 'vm',
         resolve: {
           plugin: ['Kong', '$route', function (Kong, $route) {
             var id = $route.current.params.id;
@@ -84,89 +160,32 @@
           plugins: ['Kong', function (Kong) {
             return Kong.get('/plugins/enabled');
           }],
-          apis: ['Kong', '$location', function(Kong) {
-            return Kong.get('/apis');
+          apis: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.api) {
+              return Kong.get('/apis?size=1000');
+            } else {
+              return null;
+            }
           }],
-          consumers: ['Kong', '$location', function(Kong) {
+          consumers: ['Kong', function(Kong) {
             return Kong.get('/consumers');
+          }],
+          services: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.service) {
+              return Kong.get('/services?size=1000');
+            } else {
+              return null;
+            }
+          }],
+          routes: ['Kong', 'env', function(Kong, env) {
+            if (env.schemas.route) {
+              return Kong.get('/routes?size=1000');
+            } else {
+              return null;
+            }
           }]
         }
-      })
-      .when('/consumers', {
-        templateUrl: 'html/consumers/index.html',
-        controller: 'ConsumersController'
-      })
-      .when('/consumers/add', {
-        templateUrl: 'html/consumers/form.html',
-        controller: 'ConsumerController',
-        resolve: {
-          consumer: function() { return {}; }
-        }
-      })
-      .when('/consumers/:id', {
-        templateUrl: 'html/consumers/form.html',
-        controller: 'ConsumerController',
-        resolve: {
-          consumer: ['Kong', '$route', function (Kong, $route) {
-            var id = $route.current.params.id;
-            return Kong.get('/consumers/' + id)
-          }]
-        }
-      })
-      .when('/snis', {
-        templateUrl: 'html/snis/index.html',
-        controller: 'SnisController'
-      })
-      .when('/snis/add', {
-        templateUrl: 'html/snis/form.html',
-        controller: 'SniController'
-      })
-      .when('/snis/:name', {
-        templateUrl: 'html/snis/form.html',
-        controller: 'SniController'
-      })
-      .when('/snis/add/:certificate_id', {
-        templateUrl: 'html/snis/form.html',
-        controller: 'SniController'
-      })
-      .when('/certificates', {
-        templateUrl: 'html/certificates/index.html',
-        controller: 'CertificatesController'
-      })
-      .when('/certificates/add', {
-        templateUrl: 'html/certificates/form.html',
-        controller: 'CertificateController'
-      })
-      .when('/certificates/:id', {
-        templateUrl: 'html/certificates/form.html',
-        controller: 'CertificateController'
-      })
-      .when('/upstreams', {
-        templateUrl: 'html/upstreams/index.html',
-        controller: 'UpstreamsController',
-      })
-      .when('/upstreams/add', {
-        templateUrl: 'html/upstreams/form.html',
-        controller: 'UpstreamController',
-      })
-      .when('/upstreams/:id', {
-        templateUrl: 'html/upstreams/form.html',
-        controller: 'UpstreamController',
-      })
-      .when('/upstreams/:upstream_id/targets', {
-        templateUrl: 'html/targets/index.html',
-        controller: 'TargetsController',
-        resolve: {
-          upstream: ['Kong', '$route', function (Kong, $route) {
-            var id = $route.current.params.upstream_id;
-            return Kong.get('/upstreams/' + id);
-          }]
-        }
-      })
-      .when('/upstreams/:upstream_id/targets/add', {
-        templateUrl: 'html/targets/form.html',
-        controller: 'TargetController',
       })
       .otherwise({redirectTo: '/'});
   }
-})()
+})();

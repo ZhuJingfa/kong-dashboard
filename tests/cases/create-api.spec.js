@@ -7,10 +7,14 @@ var Kong = require('../util/KongClient');
 var request = require('../../lib/request');
 var using = require('jasmine-data-provider');
 var PropertyInput = require('../util/PropertyInput');
+var semver = require('semver');
 
 var kd = new KongDashboard();
 
 describe('API creation testing', () => {
+  if (semver.gte(process.env.KONG_VERSION, '0.15.0')) {
+    return; // legacy since 0.15.0
+  }
 
   var apiSchema;
 
@@ -24,9 +28,6 @@ describe('API creation testing', () => {
 
   beforeAll((done) => {
     kd.start({'--kong-url': 'http://127.0.0.1:8001'}, () => {
-      HomePage.visit();
-      Sidebar.clickOn('APIs');
-      ListAPIsPage.clickAddButton();
       request.get('http://127.0.0.1:8081/config').then((response) => {
         eval(response.body);
         apiSchema = __env.schemas.api;
@@ -40,6 +41,9 @@ describe('API creation testing', () => {
   });
 
   it('should recognize and display an input for every field', () => {
+    HomePage.visit();
+    Sidebar.clickOn('APIs');
+    ListAPIsPage.clickAddButton();
     expect(browser.getCurrentUrl()).toEqual('http://localhost:8081/#!/apis/add');
     Object.keys(apiSchema.properties).forEach((fieldName) => {
       expect(PropertyInput.getElement(fieldName).isPresent()).toBeTruthy('Form section for ' + fieldName + ' is missing');
@@ -48,11 +52,16 @@ describe('API creation testing', () => {
 
   using(validApiInputsProvider, (data) => {
     it('should correctly create an API', (done) => {
+      HomePage.visit();
+      Sidebar.clickOn('APIs');
+      ListAPIsPage.clickAddButton();
+
       Object.keys(data.inputs).forEach((inputName) => {
         PropertyInput.set(inputName, data.inputs[inputName]);
       });
+
       CreateAPIPage.submit().then(() => {
-        expect(element(by.cssContainingText('div.toast', 'Api created')).isPresent()).toBeTruthy();
+        expect(element(by.cssContainingText('div.toast', 'API created')).isPresent()).toBeTruthy();
         return browser.waitForAngular(); // waiting for ajax call to create API to be finished.
       }).then(() => {
         return Kong.getFirstAPI();
@@ -67,9 +76,14 @@ describe('API creation testing', () => {
 
   using(invalidApiInputsProvider, (data) => {
     it('should correctly show validation error on API creation', (done) => {
+      HomePage.visit();
+      Sidebar.clickOn('APIs');
+      ListAPIsPage.clickAddButton();
+
       Object.keys(data.inputs).forEach((inputName) => {
         PropertyInput.set(inputName, data.inputs[inputName]);
       });
+
       CreateAPIPage.submit().then(() => {
         expect(element(by.cssContainingText('div.toast', 'Api created')).isPresent()).toBeFalsy();
         if (data.expectedErrors.globalError) {
@@ -91,7 +105,7 @@ describe('API creation testing', () => {
   });
 
   function validApiInputsProvider() {
-    if (process.env.KONG_VERSION === '0.9') {
+    if (semver.satisfies(process.env.KONG_VERSION, '0.9.x')) {
       return [
         {
           inputs: {
@@ -125,8 +139,7 @@ describe('API creation testing', () => {
         }
       ];
     }
-
-    if (['0.10', '0.11', '0.12', '0.13'].includes(process.env.KONG_VERSION)) {
+    else if (semver.satisfies(process.env.KONG_VERSION, '>=0.10.0 < 0.15.0')) {
       return [
         {
           inputs: {
@@ -161,7 +174,7 @@ describe('API creation testing', () => {
   }
 
   function invalidApiInputsProvider() {
-    if (process.env.KONG_VERSION === '0.9') {
+    if (semver.satisfies(process.env.KONG_VERSION, '0.9.x')) {
       return [
         {
           inputs: {},
@@ -169,7 +182,7 @@ describe('API creation testing', () => {
         }
       ];
     }
-    if (['0.10', '0.11', '0.12', '0.13'].includes(process.env.KONG_VERSION)) {
+    else if (semver.satisfies(process.env.KONG_VERSION, '>=0.10.0 < 0.15.0')) {
       return [
         {
           inputs: {},
@@ -181,6 +194,7 @@ describe('API creation testing', () => {
         }
       ];
     }
+
     throw new Error('Kong version not supported in unit tests.')
   }
 });

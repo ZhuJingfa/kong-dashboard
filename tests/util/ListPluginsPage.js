@@ -1,14 +1,14 @@
 var Page = {
 
   clickAddButton: () => {
-    return element(by.css('#newPlugin')).click();
+    return element(by.css('#newResource')).click();
   },
 
   /**
    * Returns a promise which will resolve with the rows displayed in the "list plugins" page
    */
   getRows: () => {
-    return element.all(by.repeater('plugin in plugins'));
+    return element.all(by.repeater('plugin in vm.resources'));
   },
 
   /**
